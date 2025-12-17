@@ -87,8 +87,8 @@ std::vector<std::string> get_table_lines() {
     return table;
 }
 
-void checkout_branch(const std::string &branch_name) {
-    std::string cmd = "git checkout " + branch_name;
+void switch_branch(const std::string &branch_name) {
+    std::string cmd = "git switch " + branch_name;
     system(cmd.c_str());
 }
 
@@ -148,7 +148,7 @@ int main(int argc, char** argv) {
     std::cout << "\033[?25l"; // hide cursor
     auto restore_cursor = [](){ std::cout << "\033[?25h"; };
 
-    std::cout << "Select git branch (↑/↓ j/k, Enter to checkout, q to quit)\n";
+    std::cout << "Select git branch (↑/↓ j/k, Enter to switch, q to quit)\n";
     render_table(branch_names, table_lines, selected_index);
 
     while (true) {
@@ -162,7 +162,7 @@ int main(int argc, char** argv) {
             }
         } else if (c=='j' && selected_index<(int)branch_names.size()-1) selected_index++;
         else if (c=='k' && selected_index>0) selected_index--;
-        else if (c=='\n') { restore_cursor(); checkout_branch(branch_names[selected_index]); break; }
+        else if (c=='\n') { restore_cursor(); switch_branch(branch_names[selected_index]); break; }
         else if (c=='q') { restore_cursor(); break; }
 
         render_table(branch_names, table_lines, selected_index);

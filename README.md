@@ -4,7 +4,7 @@ Interactive git branch selector in the terminal.
 
 - Highlight the currently active branch in green.
 - Navigate with **arrows** or **j/k** keys.
-- Press **Enter** to checkout the selected branch.
+- Press **Enter** to switch the selected branch.
 - Press **q** to quit.
 
 ---
@@ -51,7 +51,7 @@ Here is an example of how `git select` looks for terminal:
 
 ```
 $ git select
-Select git branch (↑/↓ j/k, Enter to checkout, q to quit)
+Select git branch (↑/↓ j/k, Enter to switch, q to quit)
   1-initial-setup                         a1b2c3d   initialize project structure
   2-api-refactor                          b2c3d4e   refactor request handling
   3-ui-polish                             c3d4e5f   adjust spacing and colors
@@ -63,7 +63,7 @@ Select git branch (↑/↓ j/k, Enter to checkout, q to quit)
 
 - `➜` marks the **currently selected branch** (highlighted).  
 - `main` is the **active branch** (green).  
-- Navigate with **arrows** or **j/k**, press **Enter** to checkout, **q** to quit.  
+- Navigate with **arrows** or **j/k**, press **Enter** to switch, **q** to quit.  
 - Lines are truncated to terminal width to prevent wrapping issues.
 
 ---
