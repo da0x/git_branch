@@ -47,7 +47,7 @@ The program will:
 
 ## Example Output
 
-Here is an example of how `git select` looks in the terminal:
+Here is an example of how `git select` looks for terminal:
 
 ```
 $ git select

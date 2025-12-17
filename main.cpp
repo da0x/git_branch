@@ -108,7 +108,14 @@ void render_table(const std::vector<std::string> &branch_names,
 }
 
 // ------------------- Main -------------------
-int main() {
+int main(int argc, char** argv) {
+    if (argc > 1 && std::string(argv[1]) == "--version") {
+        std::cout << "git-select v1.0.0\n";
+        std::cout << "An interactive git branch selector.\n";
+        std::cout << "https://github.com/da0x/git-select\n";
+        return 0;
+    }
+
     int selected_index = 0;
     auto branch_names = get_branch_names(selected_index);
     auto table_lines = get_table_lines();
