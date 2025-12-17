@@ -1,4 +1,4 @@
-# git_branch
+# git select
 
 Interactive git branch selector in the terminal.
 
@@ -23,7 +23,7 @@ make
 sudo make install
 ```
 
-This installs the `git_branch` binary to `/usr/local/bin/`.
+This installs the `git-select` binary to `/usr/local/bin/`.
 
 ---
 
@@ -32,7 +32,7 @@ This installs the `git_branch` binary to `/usr/local/bin/`.
 Run in any git repository:
 
 ```
-git_branch
+git select
 ```
 
 The program will:
@@ -47,10 +47,10 @@ The program will:
 
 ## Example Output
 
-Here is an example of how `git_branch` looks in the terminal:
+Here is an example of how `git select` looks in the terminal:
 
 ```
-$ git_branch
+$ git select
 Select git branch (↑/↓ j/k, Enter to checkout, q to quit)
   1-initial-setup                         a1b2c3d   initialize project structure
   2-api-refactor                          b2c3d4e   refactor request handling
@@ -70,15 +70,14 @@ Select git branch (↑/↓ j/k, Enter to checkout, q to quit)
 
 ## Optional: Create a shorter alias
 
-If you want to run the command more quickly, you can add an alias in your shell configuration (`~/.bashrc`, `~/.zshrc`, etc.):
+If you want even faster access, you can add an alias in your shell configuration (`~/.bashrc`, `~/.zshrc`, etc.):
 
 ```
-# shorter alias for git_branch
-alias br='git_branch'
-alias branch='git_branch'
+# shorter alias for git select
+alias br='git select'
 ```
 
-After adding the line, reload your shell:
+Reload your shell:
 
 ```
 source ~/.bashrc   # or ~/.zshrc
@@ -88,7 +87,6 @@ Then you can run:
 
 ```
 br
-branch
 ```
 
 ---
