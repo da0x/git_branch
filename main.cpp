@@ -27,7 +27,6 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 
-// ------------------- Raw mode -------------------
 struct raw_mode_t {
     termios orig;
     raw_mode_t() {
@@ -41,50 +40,49 @@ struct raw_mode_t {
     }
 };
 
-// ------------------- Terminal width -------------------
+int get_terminal_height() {
+    winsize w{};
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    return w.ws_row;
+}
+
 int get_terminal_width() {
-    struct winsize w{};
+    winsize w{};
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
     return w.ws_col;
 }
 
-// ------------------- Git helpers -------------------
-std::vector<std::string> get_branch_names(int &current_index) {
-    std::vector<std::string> names;
-    FILE* pipe = popen("git branch --no-color", "r");
+struct Branch {
+    std::string name;
+    std::string line;
+    bool active = false;
+};
+
+std::vector<Branch> get_branches(int &current_index) {
+    std::vector<Branch> branches;
+    FILE* pipe = popen("git branch -v --no-color", "r");
     if (!pipe) {
         std::cerr << "Not a git repository.\n";
         exit(1);
     }
-    char buffer[512];
+    char buffer[1024];
     int index = 0;
     while (fgets(buffer, sizeof(buffer), pipe)) {
         std::string line(buffer);
-        line.erase(line.find_last_not_of("\n\r")+1);
-        if (line.empty()) continue;
-
-        bool active = line[0] == '*';
-        std::string name = line.substr(2);
-        if (active) current_index = index;
-        names.push_back(name);
+        line.erase(line.find_last_not_of("\n\r") + 1);
+        if (line.size() < 3) continue;
+        Branch b;
+        b.active = (line[0] == '*');
+        size_t name_start = 2;
+        size_t name_end = line.find(' ', name_start);
+        b.name = line.substr(name_start, name_end - name_start);
+        b.line = line;
+        if (b.active) current_index = index;
+        branches.push_back(b);
         index++;
     }
     pclose(pipe);
-    return names;
-}
-
-std::vector<std::string> get_table_lines() {
-    std::vector<std::string> table;
-    FILE* pipe = popen("git branch -v --no-color", "r");
-    if (!pipe) return table;
-    char buffer[1024];
-    while (fgets(buffer, sizeof(buffer), pipe)) {
-        std::string line(buffer);
-        line.erase(line.find_last_not_of("\n\r")+1);
-        if (!line.empty()) table.push_back(line);
-    }
-    pclose(pipe);
-    return table;
+    return branches;
 }
 
 void switch_branch(const std::string &branch_name) {
@@ -92,42 +90,35 @@ void switch_branch(const std::string &branch_name) {
     system(cmd.c_str());
 }
 
-// ------------------- Render table -------------------
-int prev_lines_drawn = 0;
+void render_table(const std::vector<Branch> &branches, int selected_index, int scroll_offset, int &lines_rendered) {
+    int width = get_terminal_width();
+    int height = get_terminal_height() - 2;
+    int count = std::min(height, (int)branches.size() - scroll_offset);
 
-void render_table(const std::vector<std::string> &branch_names,
-                  const std::vector<std::string> &table_lines,
-                  int selected_index) {
-    int term_width = get_terminal_width();
+    for (int i = 0; i < lines_rendered; ++i)
+        std::cout << "\033[F";
 
-    for (int i = 0; i < prev_lines_drawn; ++i) std::cout << "\033[F";
-    prev_lines_drawn = branch_names.size();
+    std::cout << "Select git branch (↑/↓ j/k, Enter to switch, q to quit)\n";
 
-    for (size_t i = 0; i < branch_names.size(); ++i) {
-        std::string branch = branch_names[i];
-        std::string line;
+    for (int i = 0; i < count; ++i) {
+        int idx = i + scroll_offset;
+        std::string line = branches[idx].line;
+        if ((int)line.size() > width) line.resize(width - 1);
 
-        for (const auto &tbl : table_lines) {
-            if (tbl.find(branch) != std::string::npos) {
-                line = tbl;
-                break;
-            }
-        }
+        if (idx == selected_index && branches[idx].active)
+            std::cout << "\033[7;32m"; // invert + green
+        else if (idx == selected_index)
+            std::cout << "\033[7m";    // invert
+        else if (branches[idx].active)
+            std::cout << "\033[32m";   // green
 
-        if ((int)line.size() > term_width) line = line.substr(0, term_width - 1);
-
-        bool is_active = !line.empty() && line[0] == '*';
-        if (i == selected_index)
-            std::cout << "\033[7m"; // invert
-        else if (is_active)
-            std::cout << "\033[32m"; // green
-
-        std::cout << line << "\033[0m\033[K" << std::endl;
+        std::cout << line << "\033[0m\033[K\n";
     }
+
+    lines_rendered = count + 1;
     std::cout << std::flush;
 }
 
-// ------------------- Main -------------------
 int main(int argc, char** argv) {
     if (argc > 1 && std::string(argv[1]) == "--version") {
         std::cout << "git-select v1.0.0\n";
@@ -137,39 +128,50 @@ int main(int argc, char** argv) {
     }
 
     int selected_index = 0;
-    auto branch_names = get_branch_names(selected_index);
-    auto table_lines = get_table_lines();
-    if (branch_names.empty()) {
+    auto branches = get_branches(selected_index);
+    if (branches.empty()) {
         std::cerr << "No branches found.\n";
         return 1;
     }
 
     raw_mode_t raw;
-    std::cout << "\033[?25l"; // hide cursor
-    auto restore_cursor = [](){ std::cout << "\033[?25h"; };
+    std::cout << "\033[?25l";
 
-    std::cout << "Select git branch (↑/↓ j/k, Enter to switch, q to quit)\n";
-    render_table(branch_names, table_lines, selected_index);
+    int scroll_offset = 0;
+    int lines_rendered = 0;
+    render_table(branches, selected_index, scroll_offset, lines_rendered);
+
+    int term_height = get_terminal_height() - 2;
 
     while (true) {
         char c = getchar();
-        if (c == 27) { // arrow keys
-            char c2 = getchar();
-            char c3 = getchar();
-            if (c2=='[') {
-                if (c3=='A' && selected_index>0) selected_index--;
-                if (c3=='B' && selected_index<(int)branch_names.size()-1) selected_index++;
-            }
-        } else if (c=='j' && selected_index<(int)branch_names.size()-1) selected_index++;
-        else if (c=='k' && selected_index>0) selected_index--;
-        else if (c=='\n') { restore_cursor(); switch_branch(branch_names[selected_index]); break; }
-        else if (c=='q') { restore_cursor(); break; }
+        if (c == 27) {
+            getchar();
+            char dir = getchar();
+            if (dir == 'A' && selected_index > 0) selected_index--;
+            if (dir == 'B' && selected_index < (int)branches.size() - 1) selected_index++;
+        }
+        else if (c == 'j' && selected_index < (int)branches.size() - 1) selected_index++;
+        else if (c == 'k' && selected_index > 0) selected_index--;
+        else if (c == '\n') {
+            std::cout << "\033[?25h";
+            switch_branch(branches[selected_index].name);
+            break;
+        }
+        else if (c == 'q') {
+            std::cout << "\033[?25h";
+            break;
+        }
 
-        render_table(branch_names, table_lines, selected_index);
+        if (selected_index < scroll_offset)
+            scroll_offset = selected_index;
+        else if (selected_index >= scroll_offset + term_height)
+            scroll_offset = selected_index - term_height + 1;
+
+        render_table(branches, selected_index, scroll_offset, lines_rendered);
     }
 
-    restore_cursor();
-    std::cout << std::endl;
+    std::cout << "\033[?25h\n";
     return 0;
 }
 
